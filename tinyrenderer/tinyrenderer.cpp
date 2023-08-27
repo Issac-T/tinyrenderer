@@ -29,39 +29,33 @@ Vec3f barycentric(Vec2i* pts, Vec2i& p);
 Vec3f barycentric(Vec2i& v0, Vec2i& v1, Vec2i& v2, Vec2i& p);
 //使用重心坐标填充三角形
 void triangle_barycentric(Vec2i* pts, const TGAColor& color, TGAImage& img);
-
+//计算面法向(不区分正反)
+Vec3f get_face_normal(Vec3f* pts);
+//带深度测试的光栅化（二维投影至一位线条版本）
+void rasterize_line(Vec2i p0, Vec2i p1, const TGAColor& color, TGAImage& img, float* yBuffer);
 
 void draw_line_test();
 void draw_mesh_test();
 void draw_triangle_test();
+void draw_mesh_triangle_test();//obj网格三角面测试
+void draw_mesh_shadow_test();//obj模型光照阴影测试(简单法向)
+
 
 
 int main()
 {
-	Model model("obj/african_head.obj");//读取obj文件
-	//根据obj面数据绘制所有三角面网格线
-	int width = 2000;
-	int height = 2000;
-	int scale = width / 2;
+	const int width = 800, height = 1;
 	TGAImage image(width, height, TGAImage::RGB);
-	for (int i = 0; i < model.nfaces(); i++)
-	{
-		//该面的三个顶点
-		Vec3f pts[3] = { model.vert(model.face(i)[0]), model.vert(model.face(i)[1]), model.vert(model.face(i)[2]) };
-		//只提取xy投影
-		Vec2f pts2[3] = { Vec2f(pts[0].x, pts[0].y), Vec2f(pts[1].x, pts[1].y), Vec2f(pts[2].x, pts[2].y) };
-		//缩放平移
-		Vec2i pts3[3];
-		for (int j = 0; j < 3; j++)
-		{
-			pts3[j] = Vec2i(pts2[j].x * scale + width / 2, pts2[j].y * scale + height / 2);
-		}
-		//绘制三角面(随机生成RGB颜色)
-		triangle_barycentric(pts3, TGAColor(rand() % 255, rand() % 255, rand() % 255), image);
-	}
+	float yBuffer[width];//深度缓冲
+	//memset(yBuffer, -1, sizeof(yBuffer));
+
+	rasterize_line(Vec2i(20, 34), Vec2i(744, 400), red, image, yBuffer);
+	rasterize_line(Vec2i(120, 434), Vec2i(444, 400), green, image, yBuffer);
+	rasterize_line(Vec2i(330, 463), Vec2i(594, 200), blue, image, yBuffer);
 
 	image.flip_vertically();
-	image.write_tga_file("mesh_triangle.tga");
+	image.write_tga_file("z_buffer_test_line.tga");
+	
 }
 
 //按y降序
@@ -214,6 +208,32 @@ void triangle_barycentric(Vec2i* pts, const TGAColor& color, TGAImage& img)
 	}
 }
 
+Vec3f get_face_normal(Vec3f* pts)
+{
+	Vec3f v1 = pts[1] - pts[0];
+	Vec3f v2 = pts[2] - pts[0];
+	Vec3f n = v2 ^ v1;
+	n.normalize();
+	return n;
+}
+
+void rasterize_line(Vec2i p0, Vec2i p1, const TGAColor& color, TGAImage& img, float* yBuffer)
+{
+	if (p1.x < p0.x) std::swap(p1, p0);
+	float y_step= (float)(p1.y - p0.y) / (float)(p1.x - p0.x);
+	float y = p0.y;
+	for (int x = p0.x; x <= p1.x; x++)
+	{
+		//深度测试
+		if (y > yBuffer[x])
+		{
+			yBuffer[x] = y;
+			img.set(x,0, color);
+		}
+		y += y_step;
+	}
+}
+
 void line(int x0, int y0, int x1, int y1, const TGAColor& color, TGAImage& img)
 {
 	bool steep = false;
@@ -322,4 +342,69 @@ void draw_triangle_test()
 	triangle_bound(t2[0], t2[1], t2[2], blue, image);
 	image.flip_vertically();
 	image.write_tga_file("triangle_fill2.tga");
+}
+
+void draw_mesh_triangle_test()
+{
+	Model model("obj/african_head.obj");//读取obj文件
+	//根据obj面数据绘制所有三角面网格线
+	int width = 2000;
+	int height = 2000;
+	int scale = width / 2;
+	TGAImage image(width, height, TGAImage::RGB);
+	for (int i = 0; i < model.nfaces(); i++)
+	{
+		//该面的三个顶点
+		Vec3f pts[3] = { model.vert(model.face(i)[0]), model.vert(model.face(i)[1]), model.vert(model.face(i)[2]) };
+		//只提取xy投影
+		Vec2f pts2[3] = { Vec2f(pts[0].x, pts[0].y), Vec2f(pts[1].x, pts[1].y), Vec2f(pts[2].x, pts[2].y) };
+		//缩放平移
+		Vec2i pts3[3];
+		for (int j = 0; j < 3; j++)
+		{
+			pts3[j] = Vec2i(pts2[j].x * scale + width / 2, pts2[j].y * scale + height / 2);
+		}
+		//绘制三角面(随机生成RGB颜色)
+		triangle_barycentric(pts3, TGAColor(rand() % 255, rand() % 255, rand() % 255), image);
+	}
+
+	image.flip_vertically();
+	image.write_tga_file("mesh_triangle.tga");
+}
+
+void draw_mesh_shadow_test()
+{
+	Model model("obj/african_head.obj");//读取obj文件
+	//根据obj面数据绘制所有三角面网格线
+	int width = 2000;
+	int height = 2000;
+	int scale = width / 2;
+	TGAImage image(width, height, TGAImage::RGB);
+	for (int i = 0; i < model.nfaces(); i++)
+	{
+		//该面的三个顶点
+		Vec3f pts[3] = { model.vert(model.face(i)[0]), model.vert(model.face(i)[1]), model.vert(model.face(i)[2]) };
+		//只提取xy投影
+		Vec2f pts2[3] = { Vec2f(pts[0].x, pts[0].y), Vec2f(pts[1].x, pts[1].y), Vec2f(pts[2].x, pts[2].y) };
+		//缩放平移
+		Vec2i pts3[3];
+		for (int j = 0; j < 3; j++)
+		{
+			pts3[j] = Vec2i(pts2[j].x * scale + width / 2, pts2[j].y * scale + height / 2);
+		}
+		//加入明暗效果-根据面法向量和光照方向计算
+		Vec3f fn = get_face_normal(pts);//面法向
+		Vec3f light_dir(0, 0, -1);//光照方向-Z轴负方向
+		float intensity = (fn * light_dir);//光照强度(向量点积)
+		if (intensity > 0)	//背向光线的面不绘制
+		{
+			//绘制三角面
+			//triangle_barycentric(pts3, TGAColor(intensity*255, intensity*255, intensity*255), image);
+			triangle_barycentric(pts3, TGAColor(rand() % 255, rand() % 255, rand() % 255), image);
+		}
+	}
+
+	image.flip_vertically();
+	image.write_tga_file("mesh_triangle_visible.tga");
+
 }
