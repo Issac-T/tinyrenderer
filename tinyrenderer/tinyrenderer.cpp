@@ -35,6 +35,9 @@ Vec3f get_face_normal(Vec3f* pts);
 void rasterize_line(Vec2i p0, Vec2i p1, const TGAColor& color, TGAImage& img, float* yBuffer);
 //带深度测试的三角面光栅化
 void rasterize_triangle(Vec3f* pts, float* zBuffer, const TGAColor& color, TGAImage& img);
+//带深度测试的三角面光栅化(带纹理)
+void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer,TGAImage& img, TGAImage& texture);
+
 
 void draw_line_test();
 void draw_mesh_test();
@@ -42,6 +45,7 @@ void draw_triangle_test();
 void draw_mesh_triangle_test();//obj网格三角面测试
 void draw_mesh_shadow_test();//obj模型光照阴影测试(简单法向)
 void draw_depth_test_line();//线段深度测试
+void draw_depth_test_triangle();//三角面深度测试
 
 
 int main()
@@ -49,11 +53,15 @@ int main()
 
 
 	Model model("obj/african_head.obj");//读取obj文件
+	TGAImage texture;
+	texture.read_tga_file("obj/african_head_diffuse.tga");//加载贴图文件
+	texture.flip_vertically();//贴图文件上下翻转
 
 	int width = 2000;
 	int height = 2000;
 	int scale = width / 2.1;
 	TGAImage image(width, height, TGAImage::RGB);
+
 	//初始化zBuffer
 	float* zBuffer = new float[width * height];
 	for (int i = 0; i < width * height; i++)
@@ -65,7 +73,11 @@ int main()
 	for (int i = 0; i < model.nfaces(); i++)
 	{
 		//该面的三个顶点
-		Vec3f pts[3] = { model.vert(model.face(i)[0]), model.vert(model.face(i)[1]), model.vert(model.face(i)[2]) };
+		std::vector<int> v_index = model.face(i);
+		std::vector<int> t_index = model.face_texture(i);
+		Vec3f pts[3] = { model.vert(v_index[0]), model.vert(v_index[1]), model.vert(v_index[2]) };
+		Vec3f pts_texture[3] = { model.texture(t_index[0]), model.texture(t_index[1]), model.texture(t_index[2]) };
+
 		//缩放平移
 		Vec3f pts_scaled[3];
 		for (int j = 0; j < 3; j++)
@@ -79,12 +91,12 @@ int main()
 		if (intensity > 0)	//背向光线的面不绘制
 		{
 			//绘制三角面
-			rasterize_triangle(pts_scaled, zBuffer,TGAColor(intensity*255, intensity*255, intensity*255), image);
+			rasterize_triangle_texture(pts_scaled, pts_texture,zBuffer,image,texture);
 		}
 	}
 
 	image.flip_vertically();
-	image.write_tga_file("mesh_triangle_visible_zBuffer.tga");
+	image.write_tga_file("mesh_triangle_texture.tga");
 
 	//todo 绘制zBuffer深度图
 }
@@ -296,6 +308,42 @@ void rasterize_triangle(Vec3f* pts, float* zBuffer, const TGAColor& color, TGAIm
 	}
 }
 
+void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer, TGAImage& img, TGAImage& texture)
+{
+	//计算包围盒
+	Vec2i min, max;
+	Vec2i pts2i[3] = { Vec2i(pts[0].x,pts[0].y),Vec2i(pts[1].x,pts[1].y) ,Vec2i(pts[2].x,pts[2].y) }; //在此处已取整
+	get_boundingbox(pts2i, min, max);
+	//遍历包围盒内的点
+	for (int x = min.x; x <= max.x; x++)
+	{
+		for (int y = min.y; y <= max.y; y++)
+		{
+			//计算重心坐标
+			Vec2i P = Vec2i(x, y);
+			Vec3f cord = barycentric(pts2i, P);
+			//三角形内部判断
+			if (cord.x < 0 || cord.y < 0 || cord.z < 0)
+				continue;
+			else
+			{
+				//计算当前点深度(利用重心坐标)
+				float z = pts[0].z * cord.x + pts[1].z * cord.y + pts[2].z * cord.z;
+				if (z > zBuffer[x + y * img.get_width()])//深度测试成功
+				{
+					zBuffer[x + y * img.get_width()] = z;//更新深度缓冲
+					//获取对应贴图颜色
+					Vec3f texture_cord = pts_texture[0] * cord.x + pts_texture[1] * cord.y + pts_texture[2] * cord.z;//计算插值贴图坐标
+					int t_x = texture_cord.x * texture.get_width();//注意贴图坐标需要乘贴图文件宽高
+					int t_y = texture_cord.y * texture.get_height();
+
+					img.set(x, y, texture.get(t_x, t_y));
+				}
+			}
+		}
+	}
+}
+
 void line(int x0, int y0, int x1, int y1, const TGAColor& color, TGAImage& img)
 {
 	bool steep = false;
@@ -484,4 +532,49 @@ void draw_depth_test_line()
 
 	image.flip_vertically();
 	image.write_tga_file("z_buffer_test_line.tga");
+}
+
+void draw_depth_test_triangle()
+{
+
+
+	Model model("obj/african_head.obj");//读取obj文件
+
+	int width = 2000;
+	int height = 2000;
+	int scale = width / 2.1;
+	TGAImage image(width, height, TGAImage::RGB);
+	//初始化zBuffer
+	float* zBuffer = new float[width * height];
+	for (int i = 0; i < width * height; i++)
+	{
+		zBuffer[i] = -std::numeric_limits<float>::max();
+	}
+
+	//根据obj面数据绘制所有三角面网格线
+	for (int i = 0; i < model.nfaces(); i++)
+	{
+		//该面的三个顶点
+		Vec3f pts[3] = { model.vert(model.face(i)[0]), model.vert(model.face(i)[1]), model.vert(model.face(i)[2]) };
+		//缩放平移
+		Vec3f pts_scaled[3];
+		for (int j = 0; j < 3; j++)
+		{
+			pts_scaled[j] = pts[j] * scale + Vec3f(width / 2, height / 2, 0);
+		}
+		//加入明暗效果-根据面法向量和光照方向计算
+		Vec3f fn = get_face_normal(pts);//面法向
+		Vec3f light_dir(0, 0, -1);//光照方向-Z轴负方向
+		float intensity = (fn * light_dir);//光照强度(向量点积)
+		if (intensity > 0)	//背向光线的面不绘制
+		{
+			//绘制三角面
+			rasterize_triangle(pts_scaled, zBuffer, TGAColor(intensity * 255, intensity * 255, intensity * 255), image);
+		}
+	}
+
+	image.flip_vertically();
+	image.write_tga_file("mesh_triangle_visible_zBuffer.tga");
+
+	//todo 绘制zBuffer深度图
 }
