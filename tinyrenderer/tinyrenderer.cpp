@@ -35,8 +35,8 @@ Vec3f get_face_normal(Vec3f* pts);
 void rasterize_line(Vec2i p0, Vec2i p1, const TGAColor& color, TGAImage& img, float* yBuffer);
 //带深度测试的三角面光栅化
 void rasterize_triangle(Vec3f* pts, float* zBuffer, const TGAColor& color, TGAImage& img);
-//带深度测试的三角面光栅化(带纹理)
-void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer,TGAImage& img, TGAImage& texture);
+//带深度测试的三角面光栅化(带纹理+亮度)
+void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer,TGAImage& img, TGAImage& texture, float intensity=0);
 
 
 void draw_line_test();
@@ -91,12 +91,14 @@ int main()
 		if (intensity > 0)	//背向光线的面不绘制
 		{
 			//绘制三角面
-			rasterize_triangle_texture(pts_scaled, pts_texture,zBuffer,image,texture);
+			//rasterize_triangle_texture(pts_scaled, pts_texture,zBuffer,image,texture);
+			rasterize_triangle_texture(pts_scaled, pts_texture,zBuffer,image,texture, intensity);
 		}
 	}
 
 	image.flip_vertically();
-	image.write_tga_file("mesh_triangle_texture.tga");
+	//image.write_tga_file("mesh_triangle_texture.tga");
+	image.write_tga_file("mesh_triangle_texture_intensity.tga");
 
 	//todo 绘制zBuffer深度图
 }
@@ -308,7 +310,7 @@ void rasterize_triangle(Vec3f* pts, float* zBuffer, const TGAColor& color, TGAIm
 	}
 }
 
-void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer, TGAImage& img, TGAImage& texture)
+void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer, TGAImage& img, TGAImage& texture,float intensity)
 {
 	//计算包围盒
 	Vec2i min, max;
@@ -336,8 +338,11 @@ void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer, 
 					Vec3f texture_cord = pts_texture[0] * cord.x + pts_texture[1] * cord.y + pts_texture[2] * cord.z;//计算插值贴图坐标
 					int t_x = texture_cord.x * texture.get_width();//注意贴图坐标需要乘贴图文件宽高
 					int t_y = texture_cord.y * texture.get_height();
+					TGAColor color = texture.get(t_x, t_y);
+					for (int i = 0; i < 3; i++) 
+						color.raw[i] = color.raw[i] * intensity;//调整亮度intensity=[0~1]
 
-					img.set(x, y, texture.get(t_x, t_y));
+					img.set(x, y, color);
 				}
 			}
 		}
