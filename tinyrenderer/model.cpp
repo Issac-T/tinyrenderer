@@ -3,8 +3,21 @@
 #include <iostream>
 #include <sstream>
 
+void Model::load_texture(std::string filename, const char* suffix, TGAImage& img)
+{
+	//拼接生成贴图文件名
+	size_t pos = filename.find_last_of(".");
+	std::string img_name = filename.substr(0, pos) + std::string(suffix);
+	//加载贴图文件
+	if (img.read_tga_file(img_name.c_str()))
+		std::cout << "load texture file " << img_name << " success"<<"["<<img.get_width()<<"*"<<img.get_height()<<"]" << std::endl;
+	else
+		std::cerr << "load texture file " << img_name << " failed" << std::endl;
+}
+
 Model::Model(const char* filename)
 {
+	//加载.obj文件数据
 	std::ifstream in;
 	in.open(filename,std::ifstream::in);
 	if (!in.is_open())
@@ -31,30 +44,40 @@ Model::Model(const char* filename)
 		{
 			//纹理坐标
 			iss >> trash>> trash;
-			Vec3f vt;
-			for (int i = 0; i < 3; i++)
+			Vec2f vt;
+			for (int i = 0; i < 2; i++)	//uv只取前两个值，第三个0忽略
 				iss >> vt.raw[i];
-			textures_.push_back(vt);
+			uv_.push_back(vt);
+		}
+		else if (!line.compare(0, 3, "vn "))
+		{
+			//法线数据
+			iss >> trash >> trash;
+			Vec3f vn;
+			for (int i = 0; i < 3; i++)
+				iss >> vn.raw[i];
+			norms_.push_back(vn);
 		}
 		else if (!line.compare(0, 2, "f "))
 		{
 			//面数据
 			iss >> trash;
-			std::vector<int> f;
-			std::vector<int> f_texture;
-			int itrash, v_idx,t_idx;
-			while (iss >> v_idx >> trash >> t_idx >> trash >> itrash)//过滤掉法线坐标
+			std::vector<Vec3i> f;
+			Vec3i vtn_i;
+
+			while (iss >> vtn_i.raw[0] >> trash >> vtn_i.raw[1] >> trash >> vtn_i.raw[2])
 			{
-				v_idx--;//obj文件索引从1开始
-				t_idx--;
-				f.push_back(v_idx);
-				f_texture.push_back(t_idx);
+				for (int i = 0; i < 3; i++) vtn_i.raw[i]--;//obj文件索引从1开始
+				f.push_back(vtn_i);
 			}
 			faces_.push_back(f);
-			faces_texture_.push_back(f_texture);
 		}
 	}
-	std::cout<<"# v# "<<verts_.size()<<" f# "<<faces_.size()<<std::endl;
+	std::cout<<"# vertex# "<<verts_.size() << " texture# " << uv_.size() << " norms# " << norms_.size() <<" faces# "<<faces_.size()<<std::endl;
+	
+	//加载模型对应.tga贴图文件
+	load_texture(filename, "_diffuse.tga", diffusemap_);
+	diffusemap_.flip_vertically();
 }
 
 Model::~Model()
@@ -66,9 +89,14 @@ int Model::nverts()
 	return verts_.size();
 }
 
-int Model::ntextures()
+int Model::nuvs()
 {
-	return textures_.size();
+	return uv_.size();
+}
+
+int Model::nnorms()
+{
+	return norms_.size();
 }
 
 int Model::nfaces()
@@ -84,27 +112,28 @@ Vec3f Model::vert(int i)
 	return Vec3f();
 }
 
-Vec3f Model::texture(int i)
+Vec2f Model::uv(int facei, int verti)
 {
-	if (i < ntextures() && i >= 0)
-		return textures_[i];
+	Vec2f ret;
+	int uv_i = faces_[facei][verti][1];	//该顶点对应uv索引
+	ret = uv_[uv_i];
+	ret.x *= diffusemap_.get_width();
+	ret.y *= diffusemap_.get_height();
 
-	return Vec3f();
+	return ret;
+}
+
+TGAColor Model::diffuse(Vec2f uv)
+{
+	return diffusemap_.get(uv.u,uv.v);
 }
 
 std::vector<int> Model::face(int idx)
 {
+	std::vector<int> vi;
 	if (idx < nfaces() && idx >= 0)
-		return faces_[idx];
-
-	return std::vector<int>();
-}
-
-std::vector<int> Model::face_texture(int idx)
-{
-
-	if (idx < nfaces() && idx >= 0)
-		return faces_texture_[idx];
-
-	return std::vector<int>();
+	{	
+		for (int i = 0; i < 3; i++) vi.push_back(faces_[idx][i][0]);
+	}
+	return vi;
 }

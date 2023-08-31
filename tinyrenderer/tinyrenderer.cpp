@@ -38,7 +38,7 @@ void rasterize_line(Vec2i p0, Vec2i p1, const TGAColor& color, TGAImage& img, fl
 //带深度测试的三角面光栅化
 void rasterize_triangle(Vec3f* pts, float* zBuffer, const TGAColor& color, TGAImage& img);
 //带深度测试的三角面光栅化(带纹理+亮度)
-void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer,TGAImage& img, TGAImage& texture, float intensity=0);
+void rasterize_triangle_texture(Vec3f* pts, float* zBuffer,int f_idx, Model &model,TGAImage& img, float intensity=1);
 //对点做中心投影（透视投影）
 Vec3f central_projection(const Vec3f& pts_in, const Vec3f& camera_pos);
 
@@ -57,9 +57,6 @@ void draw_mesh_texture_test();//三角面深度测试
 int main()
 {
 	Model model("obj/african_head.obj");//读取obj文件
-	TGAImage texture;
-	texture.read_tga_file("obj/african_head_diffuse.tga");//加载贴图文件
-	texture.flip_vertically();//贴图文件上下翻转
 
 	int width = 2000;
 	int height = 2000;
@@ -67,7 +64,7 @@ int main()
 	TGAImage image(width, height, TGAImage::RGB);
 
 	//Vec3f camera_pos(0,0,2000);//相机Z轴位置
-	Vec3f camera_pos(width/2,height/2,2000);//相机Z轴位置
+	Vec3f camera_pos(width/2,height/2,3000);//相机Z轴位置
 
 	//初始化zBuffer
 	float* zBuffer = new float[width * height];
@@ -81,9 +78,8 @@ int main()
 	{
 		//该面的三个顶点
 		std::vector<int> v_index = model.face(i);
-		std::vector<int> t_index = model.face_texture(i);
+		
 		Vec3f pts[3] = { model.vert(v_index[0]), model.vert(v_index[1]), model.vert(v_index[2]) };
-		Vec3f pts_texture[3] = { model.texture(t_index[0]), model.texture(t_index[1]), model.texture(t_index[2]) };
 
 		//加入明暗效果-根据面法向量和光照方向计算
 		Vec3f fn = get_face_normal(pts);//面法向
@@ -105,12 +101,12 @@ int main()
 				pts_projected[k] = central_projection(pts_scaled[k], camera_pos);
 
 			//绘制三角面
-			rasterize_triangle_texture(pts_projected, pts_texture,zBuffer,image,texture, intensity);
+			rasterize_triangle_texture(pts_projected,zBuffer,i,model,image, intensity);
 		}
 	}
 
 	image.flip_vertically();
-	image.write_tga_file("mesh_triangle_texture_intensity_projection.tga");
+	image.write_tga_file("mesh_triangle_texture_intensity_projection1.tga");
 
 	//todo 绘制zBuffer深度图
 }
@@ -342,8 +338,10 @@ void rasterize_triangle(Vec3f* pts, float* zBuffer, const TGAColor& color, TGAIm
 	}
 }
 
-void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer, TGAImage& img, TGAImage& texture,float intensity)
+void rasterize_triangle_texture(Vec3f* pts, float* zBuffer, int f_idx, Model& model, TGAImage& img, float intensity)
 {
+	//预获取顶点uv
+	Vec2f uvs[3] = { model.uv(f_idx,0),model.uv(f_idx,1),model.uv(f_idx,2) };//顶点uv
 	//计算包围盒
 	Vec2i min, max;
 	Vec2i pts2i[3] = { Vec2i(pts[0].x,pts[0].y),Vec2i(pts[1].x,pts[1].y) ,Vec2i(pts[2].x,pts[2].y) }; //在此处已取整
@@ -367,12 +365,9 @@ void rasterize_triangle_texture(Vec3f* pts, Vec3f* pts_texture, float* zBuffer, 
 				{
 					zBuffer[x + y * img.get_width()] = z;//更新深度缓冲
 					//获取对应贴图颜色
-					Vec3f texture_cord = pts_texture[0] * cord.x + pts_texture[1] * cord.y + pts_texture[2] * cord.z;//计算插值贴图坐标
-					int t_x = texture_cord.x * texture.get_width();//注意贴图坐标需要乘贴图文件宽高
-					int t_y = texture_cord.y * texture.get_height();
-					TGAColor color = texture.get(t_x, t_y);
-					for (int i = 0; i < 3; i++) 
-						color.raw[i] = color.raw[i] * intensity;//调整亮度intensity=[0~1]
+					Vec2f pix_uv = uvs[0] * cord.x + uvs[1] * cord.y + uvs[2] * cord.z;//计算插值贴图坐标
+					TGAColor color = model.diffuse(pix_uv);
+					color = color * intensity;
 
 					img.set(x, y, color);
 				}
@@ -633,9 +628,6 @@ void draw_depth_test_triangle()
 void draw_mesh_texture_test()
 {
 	Model model("obj/african_head.obj");//读取obj文件
-	TGAImage texture;
-	texture.read_tga_file("obj/african_head_diffuse.tga");//加载贴图文件
-	texture.flip_vertically();//贴图文件上下翻转
 
 	int width = 2000;
 	int height = 2000;
@@ -654,9 +646,7 @@ void draw_mesh_texture_test()
 	{
 		//该面的三个顶点
 		std::vector<int> v_index = model.face(i);
-		std::vector<int> t_index = model.face_texture(i);
 		Vec3f pts[3] = { model.vert(v_index[0]), model.vert(v_index[1]), model.vert(v_index[2]) };
-		Vec3f pts_texture[3] = { model.texture(t_index[0]), model.texture(t_index[1]), model.texture(t_index[2]) };
 
 		//缩放平移
 		Vec3f pts_scaled[3];
@@ -672,7 +662,7 @@ void draw_mesh_texture_test()
 		{
 			//绘制三角面
 			//rasterize_triangle_texture(pts_scaled, pts_texture,zBuffer,image,texture);
-			rasterize_triangle_texture(pts_scaled, pts_texture, zBuffer, image, texture, intensity);
+			rasterize_triangle_texture(pts_scaled, zBuffer,i,model, image, intensity);
 		}
 	}
 

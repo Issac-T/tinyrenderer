@@ -23,6 +23,11 @@ struct Vec2
 
 	Vec2() :u(0), v(0) {}
 	Vec2(T _u, T _v) :u(_u), v(_v) {}
+	T& operator[](const int i)
+	{
+		if (i <= 0) return x;
+		else return y;
+	}
 	inline Vec2<T> operator+(const Vec2<T>& V) const //只有修饰为const的成员函数才能被const对象调用
 	{
 		return Vec2<T>(u + V.u, v + V.v);
@@ -64,6 +69,12 @@ struct Vec3
 
 	Vec3() :x(0), y(0), z(0) {}
 	Vec3(T _x, T _y, T _z) :x(_x), y(_y), z(_z) {}
+	T& operator[](const int i)
+	{
+		if (i <= 0) return x;
+		if (i == 1) return y;
+		else return z;
+	}
 	inline Vec3<T> operator+(const Vec3<T>& V) const //只有修饰为const的成员函数才能被const对象调用
 	{
 		return Vec3<T>(x + V.x, y + V.y, z + V.z);

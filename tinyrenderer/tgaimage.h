@@ -61,6 +61,16 @@ struct TGAColor
 		}
 		return *this;
 	}
+	//重载*运算符-等比例缩放RGBA值（亮度？）
+	TGAColor operator*(const float var)
+	{
+		TGAColor retColor(*this);
+		retColor.raw[0] *= var;
+		retColor.raw[1] *= var;
+		retColor.raw[2] *= var;
+		retColor.raw[3] *= var;
+		return retColor;
+	}
 };
 
 //TGAImage类
@@ -107,8 +117,8 @@ public:
 	bool set(int x, int y, TGAColor c); //设置像素值
 	~TGAImage();
 	TGAImage& operator=(const TGAImage& img);
-	int get_width();
-	int get_height();
+	int get_width() const;
+	int get_height() const;
 	int get_bytespp();
 	unsigned char* buffer();
 	void clear();
