@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 //模板化两点向量，支持通用的含有两个值的向量类型
 template <class T>
@@ -119,10 +120,45 @@ template <class T> std::ostream& operator<<(std::ostream& s, Vec3<T>& v)
 	return s;
 }
 
+inline std::ostream& operator<<(std::ostream& s, Matrix& m)
+{
+	for (int i = 0; i < m.rows; i++)
+	{
+		for (int j = 0; j < m.cols; j++)
+		{
+			s << m[i][j]<<"\t";
+		}
+		s << "\n";
+	}
+	return s;
+}
+
 typedef Vec2<float> Vec2f;
 typedef Vec2<int>	Vec2i;
 typedef Vec3<float> Vec3f;
 typedef Vec3<int>	Vec3i;
+
+
+const int DEFAULT_MATRIX_SIZE=4;
+
+class Matrix
+{
+	std::vector<std::vector<float>> m;
+	int rows, cols;
+public:
+	Matrix(int r= DEFAULT_MATRIX_SIZE, int c= DEFAULT_MATRIX_SIZE);
+	inline int nrows();
+	inline int ncols();
+
+	static Matrix identity(int dimensions);//生成单位阵
+
+	std::vector<float>& operator[](const int i);//重载[]取出行向量，方便使用M[i][j]定位元素
+	Matrix operator*(const Matrix& a);
+	Matrix transpose();//转置
+	Matrix inverse();//逆矩阵
+
+	friend std::ostream& operator<<(std::ostream& s, Matrix& m);
+};
 
 #endif // !__GEOMETRY_H__
 
