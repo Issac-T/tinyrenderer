@@ -41,6 +41,12 @@ void rasterize_triangle(Vec3f* pts, float* zBuffer, const TGAColor& color, TGAIm
 void rasterize_triangle_texture(Vec3f* pts, float* zBuffer,int f_idx, Model &model,TGAImage& img, float intensity=1);
 //对点做中心投影（透视投影）
 Vec3f central_projection(const Vec3f& pts_in, const Vec3f& camera_pos);
+//生成相机投影矩阵
+Matrix camera_matrix(Vec3f& camera_pos);
+//生成初始平移-缩放矩阵(一般移至画布中心、缩放至与画布相似大小)
+Matrix trans_scale_matrix(int img_width, int img_height, Vec3f scale3);
+Matrix trans_scale_matrix(int img_width, int img_height, float scale);
+
 
 
 void draw_line_test();
@@ -50,65 +56,15 @@ void draw_mesh_triangle_test();//obj网格三角面测试
 void draw_mesh_shadow_test();//obj模型光照阴影测试(简单法向)
 void draw_depth_test_line();//线段深度测试
 void draw_depth_test_triangle();//三角面深度测试
-void draw_mesh_texture_test();//三角面深度测试
+void draw_mesh_texture_test();//三角面深度测试-带贴图
+void draw_central_projection_test();//中心投影测试(非矩阵)
+void draw_central_projection_test2();//中心投影测试(使用矩阵变换)
 
 
 
 int main()
 {
-	Model model("obj/african_head.obj");//读取obj文件
-
-	int width = 2000;
-	int height = 2000;
-	int scale = width / 2.1;
-	TGAImage image(width, height, TGAImage::RGB);
-
-	//Vec3f camera_pos(0,0,2000);//相机Z轴位置
-	Vec3f camera_pos(width/2,height/2,3000);//相机Z轴位置
-
-	//初始化zBuffer
-	float* zBuffer = new float[width * height];
-	for (int i = 0; i < width * height; i++)
-	{
-		zBuffer[i] = -std::numeric_limits<float>::max();
-	}
-
-	//根据obj面数据绘制所有三角面网格线
-	for (int i = 0; i < model.nfaces(); i++)
-	{
-		//该面的三个顶点
-		std::vector<int> v_index = model.face(i);
-		
-		Vec3f pts[3] = { model.vert(v_index[0]), model.vert(v_index[1]), model.vert(v_index[2]) };
-
-		//加入明暗效果-根据面法向量和光照方向计算
-		Vec3f fn = get_face_normal(pts);//面法向
-		Vec3f light_dir(0, 0, -1);//光照方向-Z轴负方向
-		float intensity = (fn * light_dir);//光照强度(向量点积)
-
-		if (intensity > 0)	//背向光线的面不绘制
-		{
-			//缩放 原点平移至画布中心
-			Vec3f pts_scaled[3];
-			for (int j = 0; j < 3; j++)
-			{
-				pts_scaled[j] = pts[j] * scale + Vec3f(width / 2, height / 2, 0);
-			}
-
-			//对该三角面做透视变换
-			Vec3f pts_projected[3];
-			for (int k = 0; k < 3; k++)
-				pts_projected[k] = central_projection(pts_scaled[k], camera_pos);
-
-			//绘制三角面
-			rasterize_triangle_texture(pts_projected,zBuffer,i,model,image, intensity);
-		}
-	}
-
-	image.flip_vertically();
-	image.write_tga_file("mesh_triangle_texture_intensity_projection1.tga");
-
-	//todo 绘制zBuffer深度图
+	draw_central_projection_test2();
 }
 
 //按y降序
@@ -390,6 +346,40 @@ Vec3f central_projection(const Vec3f &pts_in, const Vec3f &camera_pos)
 	return pts_trans;
 }
 
+Matrix camera_matrix(Vec3f& camera_pos)
+{
+	Matrix t1 = Matrix::identity(4);	//相对相机平移(仅XY平面)
+	Matrix t2 = Matrix::identity(4);	//t1的逆
+	Matrix p1 = Matrix::identity(4);	//关于原点的中心投影
+	t1[0][3] = -camera_pos[0];
+	t1[1][3] = -camera_pos[1];
+	
+	t2[0][3] = camera_pos[0];
+	t2[1][3] = camera_pos[1];
+
+	p1[3][2] = -1.f / camera_pos[2]; //r = -1/c
+
+	return t2*p1*t1;
+}
+
+Matrix trans_scale_matrix(int img_width, int img_height, Vec3f scale3)
+{
+	Matrix ret = Matrix::identity(4);
+	//平移
+	ret[0][3] = img_width / 2.f;
+	ret[1][3] = img_height / 2.f;
+	//缩放(对角线元素)
+	ret[0][0] = scale3.x;
+	ret[1][1] = scale3.y;
+	ret[2][2] = scale3.z;
+	return ret;
+}
+
+Matrix trans_scale_matrix(int img_width, int img_height, float scale)
+{
+	return trans_scale_matrix(img_width,img_height,Vec3f(scale, scale, scale));
+}
+
 void line(int x0, int y0, int x1, int y1, const TGAColor& color, TGAImage& img)
 {
 	bool steep = false;
@@ -669,6 +659,121 @@ void draw_mesh_texture_test()
 	image.flip_vertically();
 	//image.write_tga_file("mesh_triangle_texture.tga");
 	image.write_tga_file("mesh_triangle_texture_intensity.tga");
+
+	//todo 绘制zBuffer深度图
+}
+
+void draw_central_projection_test()
+{
+	Model model("obj/african_head.obj");//读取obj文件
+
+	int width = 2000;
+	int height = 2000;
+	int scale = width / 2.1;
+	TGAImage image(width, height, TGAImage::RGB);
+
+	//Vec3f camera_pos(0,0,2000);//相机Z轴位置
+	Vec3f camera_pos(width / 2, height / 2, 3000);//相机Z轴位置
+
+	//初始化zBuffer
+	float* zBuffer = new float[width * height];
+	for (int i = 0; i < width * height; i++)
+	{
+		zBuffer[i] = -std::numeric_limits<float>::max();
+	}
+
+	//根据obj面数据绘制所有三角面网格线
+	for (int i = 0; i < model.nfaces(); i++)
+	{
+		//该面的三个顶点
+		std::vector<int> v_index = model.face(i);
+
+		Vec3f pts[3] = { model.vert(v_index[0]), model.vert(v_index[1]), model.vert(v_index[2]) };
+
+		//加入明暗效果-根据面法向量和光照方向计算
+		Vec3f fn = get_face_normal(pts);//面法向
+		Vec3f light_dir(0, 0, -1);//光照方向-Z轴负方向
+		float intensity = (fn * light_dir);//光照强度(向量点积)
+
+		if (intensity > 0)	//背向光线的面不绘制
+		{
+			//缩放 原点平移至画布中心
+			Vec3f pts_scaled[3];
+			for (int j = 0; j < 3; j++)
+			{
+				pts_scaled[j] = pts[j] * scale + Vec3f(width / 2, height / 2, 0);
+			}
+
+			//对该三角面做透视变换
+			Vec3f pts_projected[3];
+			for (int k = 0; k < 3; k++)
+				pts_projected[k] = central_projection(pts_scaled[k], camera_pos);
+
+			//绘制三角面
+			rasterize_triangle_texture(pts_projected, zBuffer, i, model, image, intensity);
+		}
+	}
+
+	image.flip_vertically();
+	image.write_tga_file("mesh_triangle_texture_intensity_projection1.tga");
+
+	//todo 绘制zBuffer深度图
+}
+
+void draw_central_projection_test2()
+{
+	Model model("obj/african_head.obj");//读取obj文件
+
+	int width = 2000;
+	int height = 2000;
+	float scale = width / 2.1;
+	TGAImage image(width, height, TGAImage::RGB);
+
+	//Vec3f camera_pos(0,0,2000);//相机Z轴位置
+	Vec3f camera_pos(width / 2, height / 2, 3000);//相机Z轴位置
+	//生成变换矩阵
+	Matrix M_trans_scale = trans_scale_matrix(width, height, scale);
+	Matrix M_project = camera_matrix(camera_pos);
+	Matrix M_total = M_project * M_trans_scale;
+	std::cout << "M_trans_scale:\n" << M_trans_scale;
+	std::cout << "M_project:\n" << M_project;
+
+	//初始化zBuffer
+	float* zBuffer = new float[width * height];
+	for (int i = 0; i < width * height; i++)
+	{
+		zBuffer[i] = -std::numeric_limits<float>::max();
+	}
+
+	//根据obj面数据绘制所有三角面网格线
+	for (int i = 0; i < model.nfaces(); i++)
+	{
+		//该面的三个顶点
+		std::vector<int> v_index = model.face(i);
+
+		Vec3f pts[3] = { model.vert(v_index[0]), model.vert(v_index[1]), model.vert(v_index[2]) };
+
+		//加入明暗效果-根据面法向量和光照方向计算
+		Vec3f fn = get_face_normal(pts);//面法向
+		Vec3f light_dir(0, 0, -1);//光照方向-Z轴负方向
+		float intensity = (fn * light_dir);//光照强度(向量点积)
+
+		if (intensity > 0)	//只绘制面向光线的面
+		{
+			//变换至相机坐标系
+			Vec3f pts_transed[3];
+			for (int j = 0; j < 3; j++)
+			{
+				pts_transed[j] = m2v(M_total*v2m(pts[j]));
+			}
+
+			//绘制三角面
+			rasterize_triangle_texture(pts_transed, zBuffer, i, model, image, intensity);
+		}
+	}
+
+	image.flip_vertically();
+	image.write_tga_file("mesh_triangle_texture_intensity_projection2.tga");
 
 	//todo 绘制zBuffer深度图
 }

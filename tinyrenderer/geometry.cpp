@@ -64,19 +64,33 @@ Matrix Matrix::inverse()
 	return Matrix();
 }
 
-Matrix v2m(Vec3f& v)
+Matrix v2m(Vec3f v)
 {
 	Matrix ret(4, 1);
 	ret[0][0] = v[0];
 	ret[1][0] = v[1];
 	ret[2][0] = v[2];
-	ret[4][0] = 1.f;
+	ret[3][0] = 1.f;
 	return ret;
 }
 
-Vec3f m2v(Matrix& m)
+Vec3f m2v(Matrix m)
 {
 	assert(m.nrows() >= 3);
-	return Vec3f(m[0][0], m[1][0], m[2][0]);
+	float coff = m[3][0]; //注意第4维归一化，重投影至原三维空间，否则中心投影出错
+	return Vec3f(m[0][0]/ coff, m[1][0]/ coff, m[2][0]/ coff);
+}
+
+std::ostream& operator<<(std::ostream& s, Matrix& m)
+{
+	for (int i = 0; i < m.rows; i++)
+	{
+		for (int j = 0; j < m.cols; j++)
+		{
+			s << m[i][j] << "\t";
+		}
+		s << "\n";
+	}
+	return s;
 }
 

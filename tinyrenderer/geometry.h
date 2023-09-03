@@ -110,26 +110,13 @@ struct Vec3
 		*this = (*this) * (len / n);
 		return *this;
 	}
-	//将ostream声明为友元函数，使得可以直接使用cout<<v输出向量 (friend函数/类可直接访问本类的私有成员)
+	//将ostream <<声明为友元函数，使得可以直接使用cout<<v输出向量 (friend函数/类可直接访问本类的私有成员)
 	friend std::ostream& operator<<(std::ostream& s, Vec3<T>& v);
 };
 
 template <class T> std::ostream& operator<<(std::ostream& s, Vec3<T>& v)
 {
 	s << "(" << v.x << "," << v.y << "," << v.z << ")" << std::endl;
-	return s;
-}
-
-inline std::ostream& operator<<(std::ostream& s, Matrix& m)
-{
-	for (int i = 0; i < m.rows; i++)
-	{
-		for (int j = 0; j < m.cols; j++)
-		{
-			s << m[i][j]<<"\t";
-		}
-		s << "\n";
-	}
 	return s;
 }
 
@@ -160,10 +147,12 @@ public:
 	friend std::ostream& operator<<(std::ostream& s, Matrix& m);
 };
 
+
+
 //点坐标转为矩阵格式-以便矩阵相乘进行坐标变换
-Matrix v2m(Vec3f& v);
+Matrix v2m(Vec3f v);
 //矩阵格式点坐标转为Vec3f
-Vec3f m2v(Matrix& m);
+Vec3f m2v(Matrix m);
 
 
 #endif // !__GEOMETRY_H__
