@@ -160,5 +160,11 @@ public:
 	friend std::ostream& operator<<(std::ostream& s, Matrix& m);
 };
 
+//点坐标转为矩阵格式-以便矩阵相乘进行坐标变换
+Matrix v2m(Vec3f& v);
+//矩阵格式点坐标转为Vec3f
+Vec3f m2v(Matrix& m);
+
+
 #endif // !__GEOMETRY_H__
 

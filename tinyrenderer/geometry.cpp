@@ -64,3 +64,19 @@ Matrix Matrix::inverse()
 	return Matrix();
 }
 
+Matrix v2m(Vec3f& v)
+{
+	Matrix ret(4, 1);
+	ret[0][0] = v[0];
+	ret[1][0] = v[1];
+	ret[2][0] = v[2];
+	ret[4][0] = 1.f;
+	return ret;
+}
+
+Vec3f m2v(Matrix& m)
+{
+	assert(m.nrows() >= 3);
+	return Vec3f(m[0][0], m[1][0], m[2][0]);
+}
+
