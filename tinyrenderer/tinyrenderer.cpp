@@ -53,6 +53,8 @@ Matrix trans_scale_matrix_1(Vec3f move, Vec3f scale3);
 Matrix u_lookat(Vec3f& eye_pos, Vec3f& center, Vec3f& up);
 //生成相机投影矩阵(仅做根据z轴做中心投影，不处理任何相对平移)
 Matrix camera_matrix(float camera_z);
+//生成ViewPort矩阵（将[-1~1]立方缩放至[0 0 0]-[w,h,d]范围内）
+Matrix viewport_matrix(int x, int y, int w, int h);
 
 
 
@@ -437,6 +439,21 @@ Matrix camera_matrix(float camera_z)
 	Matrix P = Matrix::identity(4);
 	P[3][2] = -1.f / camera_z; //r = -1/c
 	return P;
+}
+
+Matrix viewport_matrix(int x, int y, int w, int h)
+{
+	const float depth = 255;//z轴（深度）缩放至0-255范围，以便绘制深度图
+	Matrix ret = Matrix::identity(4);
+	//缩放
+	ret[0][0] = w / 2.f;
+	ret[1][1] = h / 2.f;
+	ret[2][2] = depth / 2.f;
+	//平移
+	ret[0][3] = x + w / 2.f;
+	ret[1][3] = y + h / 2.f;
+	ret[2][3] = depth / 2.f;
+	return ret;
 }
 
 void line(int x0, int y0, int x1, int y1, const TGAColor& color, TGAImage& img)
@@ -846,20 +863,21 @@ void draw_move_camera_test()
 	float scale = width / 2.1;
 	TGAImage image(width, height, TGAImage::RGB);
 
-	Vec3f camera_pos(width, height, 3000);//相机位置
+	Vec3f camera_pos(2, 2, 3);//相机位置
 	Vec3f camera_center(0, 0, 0);//相机视点(相机坐标系原点)
 	Vec3f camera_up(0,1,0);//相机视线正上方向
 	Vec3f view_dir = camera_pos - camera_center;
 	view_dir.normalize();
 	//生成变换矩阵
-	Matrix M_ini = trans_scale_matrix_1(Vec3f(0,0,0), scale);	//mesh初始缩放移动矩阵
-	Matrix M_lookat = u_lookat(camera_pos, camera_center, camera_up);	//变换至相机空间
+	Matrix M_model = Matrix::identity(4);	//mesh初始缩放移动矩阵
+	Matrix M_view = u_lookat(camera_pos, camera_center, camera_up);	//变换至相机空间
 	Matrix M_project = camera_matrix((camera_pos-camera_center).norm());//透视投影变换
-	Matrix M_center = trans_scale_matrix_1(Vec3f(width / 2, height / 2, 00));//移至画布中心
-	Matrix M_total = M_center*M_project*M_lookat* M_ini;
-	std::cout << "M_ini:\n" << M_ini;
-	std::cout << "M_lookat:\n" << M_lookat;
+	Matrix M_viewport = viewport_matrix(0,0, width,height);//移至画布中心
+	Matrix M_total = M_viewport * M_project * M_view * M_model;
+	std::cout << "M_model:\n" << M_model;
+	std::cout << "M_view:\n" << M_view;
 	std::cout << "M_project:\n" << M_project;
+	std::cout << "M_viewport:\n" << M_viewport;
 
 	//初始化zBuffer
 	float* zBuffer = new float[width * height];
@@ -897,7 +915,7 @@ void draw_move_camera_test()
 	}
 
 	image.flip_vertically();
-	image.write_tga_file("mesh_camera_move3.tga");
+	image.write_tga_file("mesh_camera_move4.tga");
 
 	//todo 绘制zBuffer深度图
 }
