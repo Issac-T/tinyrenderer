@@ -915,7 +915,12 @@ void draw_move_camera_test()
 	}
 
 	image.flip_vertically();
-	image.write_tga_file("mesh_camera_move4.tga");
+	image.write_tga_file("mesh_camera_move.tga");
 
 	//todo 绘制zBuffer深度图
+	TGAImage depthmap(width, height, TGAImage::RGB);
+	for (int i = 0; i < width * height; i++)
+		depthmap.set(i % width, i / height, TGAColor(zBuffer[i], zBuffer[i], zBuffer[i]));
+	depthmap.flip_vertically();
+	depthmap.write_tga_file("mesh_camera_move_depthmap.tga");
 }
