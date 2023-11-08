@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="tinyrenderer.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="tgaimage.cpp">
@@ -25,6 +25,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="geometry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="my_gl.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="drawtest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -39,6 +45,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="my_gl.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="drawtest.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

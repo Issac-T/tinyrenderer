@@ -127,12 +127,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="drawtest.cpp" />
     <ClCompile Include="geometry.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="my_gl.cpp" />
     <ClCompile Include="tgaimage.cpp" />
-    <ClCompile Include="tinyrenderer.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="drawtest.h" />
     <ClInclude Include="geometry.h" />
     <ClInclude Include="model.h" />
     <ClInclude Include="my_gl.h" />

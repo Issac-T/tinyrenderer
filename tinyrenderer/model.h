@@ -27,6 +27,7 @@ public:
 	int nfaces();//面数
 	Vec3f vert(int i);//获取第i个顶点
 	Vec2f uv(int facei,int verti);////获取第facei面的第verti个纹理点的uv坐标
+	Vec3f norm(int facei, int verti);//获取第facei面的第verti个法线点
 	TGAColor diffuse(Vec2f uv);//获取uv坐标对应的贴图颜色值
 	
 	std::vector<int> face(int idx);//获取第idx个面(的顶点索引)

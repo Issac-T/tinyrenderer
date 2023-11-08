@@ -16,7 +16,7 @@ private:
 public:
 	vec()
 	{
-		for (int i = DIM; i--; data[DIM] = T());
+		for (int i = DIM; i--; data[i] = T());
 	}
 	T& operator[](const size_t i)
 	{
@@ -34,7 +34,10 @@ template <typename T> struct vec<2, T>
 {
 	vec() :x(T()), y(T()) {}
 	vec(T X, T Y) :x(X), y(Y) {}
-	template <class U> vec<2, T>(vec<2, U>& v);
+
+	//不同type拷贝构造函数，特化实现在cpp中
+	template <class U> vec<2, T>(const vec<2, U>& v);
+
 	T& operator[](const size_t i)
 	{
 		assert(i < 2); return i <= 0 ? x : y;
@@ -43,7 +46,7 @@ template <typename T> struct vec<2, T>
 	{
 		assert(i < 2); return i <= 0 ? x : y;
 	}
-private:
+
 	T x, y;
 };
 
@@ -52,7 +55,10 @@ template <typename T> struct vec<3, T>
 {
 	vec() :x(T()), y(T()), z(T()) {}
 	vec(T X, T Y, T Z) :x(X), y(Y), z(Z) {}
-	template <class U> vec<3, T>(vec<3, U>& v);
+
+	//不同type拷贝构造函数，特化实现在cpp中
+	template <class U> vec<3, T>(const vec<3, U>& v);
+
 	T& operator[](const size_t i)
 	{
 		assert(i < 3);
@@ -76,14 +82,14 @@ template <typename T> struct vec<3, T>
 		*this = (*this) * (len / this->norm());
 		return *this;
 	}
-private:
+
 	T x, y, z;
 };
 
 //矩阵算数运算符重载
 
 template <size_t DIM, typename T>
-vec<DIM, T> operator+(vec<DIM, T> lhs, vec<DIM, T>& rhs) //加法
+vec<DIM, T> operator+(vec<DIM, T> lhs, const vec<DIM, T>& rhs) //加法
 {
 	for (int i = 0; i < DIM; i++)
 		lhs[i] += rhs[i];
@@ -91,7 +97,7 @@ vec<DIM, T> operator+(vec<DIM, T> lhs, vec<DIM, T>& rhs) //加法
 }
 
 template <size_t DIM, typename T>
-vec<DIM, T> operator-(vec<DIM, T> lhs, vec<DIM, T>& rhs) //减法
+vec<DIM, T> operator-(vec<DIM, T> lhs, const vec<DIM, T>& rhs) //减法
 {
 	for (int i = 0; i < DIM; i++)
 		lhs[i] -= rhs[i];
@@ -99,7 +105,7 @@ vec<DIM, T> operator-(vec<DIM, T> lhs, vec<DIM, T>& rhs) //减法
 }
 
 template <size_t DIM, typename T>
-T operator*(vec<DIM, T>& lhs, vec<DIM, T>& rhs)	//点积
+T operator*(const vec<DIM, T>& lhs, const vec<DIM, T>& rhs)	//点积
 {
 	T ret = T();
 	for (int i = 0; i < DIM; i++)
@@ -108,7 +114,7 @@ T operator*(vec<DIM, T>& lhs, vec<DIM, T>& rhs)	//点积
 }
 
 template <size_t DIM, typename T, typename U>
-T operator*(vec<DIM, T> lhs, U& rhs)	//数乘
+vec<DIM, T> operator*(vec<DIM, T> lhs, const U& rhs) //数乘 注意数字rhs必须使用常引用/非引用，否则无法传入临时变量
 {
 	for (int i = 0; i < DIM; i++)
 		lhs[i] *= rhs;
@@ -116,7 +122,7 @@ T operator*(vec<DIM, T> lhs, U& rhs)	//数乘
 }
 
 template <size_t DIM, typename T, typename U>
-T operator/(vec<DIM, T> lhs, U& rhs)	//数除
+vec<DIM, T> operator/(vec<DIM, T> lhs, const U& rhs)	//数除
 {
 	for (int i = 0; i < DIM; i++)
 		lhs[i] /= rhs;
@@ -132,6 +138,8 @@ template <size_t LEN, size_t DIM, typename T> vec<LEN, T> embed(const vec<DIM, T
 	return ret;
 }
 
+
+
 template <size_t LEN, size_t DIM, typename T> vec<LEN, T> proj(const vec<DIM, T>& v)//降维投影
 {
 	vec<LEN, T> ret;
@@ -139,13 +147,36 @@ template <size_t LEN, size_t DIM, typename T> vec<LEN, T> proj(const vec<DIM, T>
 		ret[i] = v[i];
 	return ret;
 }
+
+//错误！！！函数模板不支持部分特化，只能全特化！！！
+//4维降3维投影特化（用于中心投影变换中降维，除以1-z/c）
+//template <typename T> vec<3, T> proj<3,4,T>(const vec<4, T>& v)
+//{
+//	vec<3, T> ret;
+//	for (int i = 0; i < 3; i++)
+//		ret[i] = v[i] / v[3];
+//	return ret;
+//}
+
+//4维降3维投影特化（用于中心投影变换中降维，除以1-z/c）
+//函数全特化后必须作为inline或者extern，否则会出现重复定义错误(已成为普通函数，无法重复包含)
+template <>
+inline vec<3, float> proj<3, 4, float>(const vec<4, float>& v) 
+{
+	vec<3, float> ret;
+	for (int i = 0; i < 3; i++)
+		ret[i] = v[i] / v[3];
+	return ret;
+}
+
+
 //对三维向量实现叉乘
 template<typename T> vec<3, T> cross(vec<3, T> v1, vec<3, T> v2)
 {
 	vec<3, T> ret;
 	ret.x = v1.y * v2.z - v1.z * v2.y;
 	ret.y = v1.z * v2.x - v1.x * v2.z;
-	ret.x = v1.x * v2.y - v1.y * v2.x;
+	ret.z = v1.x * v2.y - v1.y * v2.x;
 	return ret;
 }
 
@@ -167,7 +198,7 @@ static T mat_det(const mat<DIM, DIM, T>& src)
 }
 
 template<typename T>
-static T mat_det(const mat<1, 1, T>& src)	//非类型模板参数递归必须使用
+static T mat_det(const mat<1, 1, T>& src)	//非类型模板参数递归必须使用特化作为终止条件
 {
 	return src[0][0];
 }
@@ -180,6 +211,7 @@ class mat
 	vec<DimCol, T> rows[DimRow];
 public:
 	mat() {}
+	~mat() {}
 
 	vec<DimCol, T>& operator[](size_t idx) //取行向量
 	{
@@ -227,15 +259,15 @@ public:
 		//for (size_t i = 0; i < DimRow; i++)
 		//	ret += rows[0][i] * this->cofactor(0, i);
 		//return T
-		mat_det(*this);
+		return mat_det(*this);
 	}
 
 	mat<DimRow - 1, DimCol - 1, T> get_minor(size_t row, size_t col) const //第ij元素余子式矩阵
 	{
 		mat<DimRow - 1, DimCol - 1, T> ret;
-		for (size_t i = DimRow - 1; i--;)
+		for (size_t i = DimRow; i--;)
 		{
-			for (size_t j = DimCol - 1; j--;)
+			for (size_t j = DimCol; j--;)
 				ret[i][j] = rows[i < row ? i : i + 1][j < col ? j : j + 1];
 		}
 		return ret;
@@ -250,9 +282,9 @@ public:
 	mat<DimRow, DimCol, T> adjugate() const //求伴随矩阵
 	{
 		mat<DimRow, DimCol, T> ret;
-		for (size_t i = DimRow - 1; i--;)
+		for (size_t i = DimRow; i--;)	//注意第一次判断时即会执行i--，故i初值实际为Dim-1
 		{
-			for (size_t j = DimCol - 1; j--;)
+			for (size_t j = DimCol; j--;)
 			{
 				ret[i][j] = this->cofactor(i, j);
 			}
@@ -266,6 +298,20 @@ public:
 		T tmpdet = rows[0] * ret[0];//求得本阶行列式
 
 		return ret / tmpdet;
+	}
+
+	mat<DimRow, DimCol, T> transpose() const //求转置矩阵
+	{
+		mat<DimRow, DimCol, T> ret;
+		for (size_t i = DimRow; i--;)
+		{
+			for (size_t j = DimCol; j--;)
+			{
+				ret[i][j] = rows[j][i];
+			}
+		}
+		return ret;
+
 	}
 };
 
@@ -286,13 +332,13 @@ vec<DIMCols, T> operator* (const mat<DIMRows, DIMCols, T>& lhs, const vec<DIMCol
 
 //矩阵相乘
 template<size_t R1, size_t C1, size_t C2, typename T>
-mat<R1, C2, T> operator* (const mat<R1, C1, T>& lhs, const mat<C1, C2, T> rhs)
+mat<R1, C2, T> operator* (const mat<R1, C1, T>& lhs, const mat<C1, C2, T>& rhs)
 {
 	mat<R1, C2, T> ret;
 	for (size_t i = R1; i--;)
 	{
 		for (size_t j = C2; j--;)
-			ret[i][j] = lhs[i] * rhs.col[j];
+			ret[i][j] = lhs[i] * rhs.col(j);
 	}
 	return ret;
 }
@@ -302,9 +348,9 @@ template<size_t DIMRows, size_t DIMCols, typename T>
 mat<DIMRows, DIMCols, T> operator* (const mat<DIMRows, DIMCols, T>& lhs, const T num)
 {
 	mat<DIMRows, DIMCols, T> ret;
-	for (size_t i = R1; i--;)
+	for (size_t i = DIMRows; i--;)
 	{
-		for (size_t j = C2; j--;)
+		for (size_t j = DIMCols; j--;)
 			ret[i][j] = lhs[i][j] / num;
 	}
 	return ret;
@@ -472,14 +518,14 @@ public:
 	friend std::ostream& operator<<(std::ostream& s, Matrix& m);
 };
 
-*/
+
 
 
 //点坐标转为矩阵格式-以便矩阵相乘进行坐标变换
 Matrix v2m(Vec3f v);
 //矩阵格式点坐标转为Vec3f
 Vec3f m2v(Matrix m);
-
+*/
 
 #endif // !__GEOMETRY_H__
 

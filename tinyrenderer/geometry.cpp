@@ -1,6 +1,14 @@
 #include "geometry.h"
 #include <cassert>
 
+template<> template<> vec<3, float>::vec(const vec<3, int>& v) : x(v.x), y(v.y), z(v.z) {}
+template<> template<> vec<2, float>::vec(const vec<2, int>& v) : x(v.x), y(v.y) {}
+//float转int向上取整
+template<> template<> vec<3, int>::vec(const vec<3, float>& v) : x(v.x + 0.5f), y(v.y + 0.5f), z(v.z + 0.5f) {}
+template<> template<> vec<2, int>::vec(const vec<2, float>& v) : x(v.x + 0.5f), y(v.y + 0.5f) {}
+
+
+/*
 Matrix::Matrix(int r, int c): rows(r),cols(c)
 {
 	using std::vector;
@@ -94,3 +102,4 @@ std::ostream& operator<<(std::ostream& s, Matrix& m)
 	return s;
 }
 
+*/
