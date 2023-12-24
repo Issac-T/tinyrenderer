@@ -8,7 +8,10 @@
 class Model
 {
 private:
-	TGAImage diffusemap_;//贴图
+	TGAImage diffusemap_;//材质贴图
+	TGAImage normalmap_;//法线贴图
+	TGAImage normalmap_tan_;//切空间法线贴图
+	TGAImage specmap_;//高光贴图
 	std::vector<Vec3f> verts_;//顶点数据
 	std::vector<Vec2f> uv_;//纹理数据
 	std::vector<Vec3f> norms_;//法线数据
@@ -26,10 +29,13 @@ public:
 	int nnorms();//法线点数
 	int nfaces();//面数
 	Vec3f vert(int i);//获取第i个顶点
-	Vec2f uv(int facei,int verti);////获取第facei面的第verti个纹理点的uv坐标
+	Vec2f uv(int facei, int verti);////获取第facei面的第verti个纹理点的uv坐标
 	Vec3f norm(int facei, int verti);//获取第facei面的第verti个法线点
-	TGAColor diffuse(Vec2f uv);//获取uv坐标对应的贴图颜色值
-	
+	Vec3f normal(Vec2f uv);//获取uv坐标对应的法线值(法线贴图)
+	Vec3f normal_tan(Vec2f uv);//获取uv坐标对应的法线值(切空间法线贴图)
+	TGAColor diffuse(Vec2f uv);//获取uv坐标对应的漫反射贴图颜色值
+	float specular(Vec2f uv);//获取uv坐标对应的高光贴图颜色值
+
 	std::vector<int> face(int idx);//获取第idx个面(的顶点索引)
 };
 

@@ -30,12 +30,14 @@ void triangle(Vec4f* pts, IShader& shader, TGAImage& image, TGAImage& zbuffer)
 				float z = verts[0].z * cord.x + verts[1].z * cord.y + verts[2].z * cord.z;
 				if (z > zbuffer.get(x, y).raw[0])//深度测试成功
 				{
-					zbuffer.set(x, y, TGAColor(z, 1));//更新深度缓冲
 					//渲染该点色值
 					TGAColor color;
-					shader.fragment(cord, color);
-
-					image.set(x, y, color);
+					bool discard = shader.fragment(cord, color);
+					if (!discard) //在fragment中可判定是否丢弃该点光栅化
+					{
+						zbuffer.set(x, y, TGAColor(z, 1));//更新深度缓冲
+						image.set(x, y, color);
+					}
 				}
 			}
 		}

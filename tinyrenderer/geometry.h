@@ -129,6 +129,14 @@ vec<DIM, T> operator/(vec<DIM, T> lhs, const U& rhs)	//数除
 	return lhs;
 }
 
+template <size_t DIM, typename T, typename U>
+vec<DIM, T> operator-(vec<DIM, T> lhs, const U& rhs) //加法(数加)
+{
+	for (int i = 0; i < DIM; i++)
+		lhs[i] -= rhs;
+	return lhs;
+}
+
 //注意embed函数实例化时需显式指定模板化参数<LEN>（升维后维度）(因为C++不能通过返回值类型区分函数？)
 template <size_t LEN, size_t DIM, typename T> vec<LEN, T> embed(const vec<DIM, T>& v, T fill = 1)//升维填充
 {
@@ -195,6 +203,7 @@ static T mat_det(const mat<DIM, DIM, T>& src)
 	T ret = 0;
 	for (size_t i = 0; i < DIM; i++)
 		ret += src[0][i] * src.cofactor(0, i);
+	return ret;
 }
 
 template<typename T>
@@ -265,9 +274,9 @@ public:
 	mat<DimRow - 1, DimCol - 1, T> get_minor(size_t row, size_t col) const //第ij元素余子式矩阵
 	{
 		mat<DimRow - 1, DimCol - 1, T> ret;
-		for (size_t i = DimRow; i--;)
+		for (size_t i = DimRow-1; i--;)
 		{
-			for (size_t j = DimCol; j--;)
+			for (size_t j = DimCol-1; j--;)
 				ret[i][j] = rows[i < row ? i : i + 1][j < col ? j : j + 1];
 		}
 		return ret;
@@ -286,7 +295,7 @@ public:
 		{
 			for (size_t j = DimCol; j--;)
 			{
-				ret[i][j] = this->cofactor(i, j);
+				ret[j][i] = this->cofactor(i, j); //注意此处i,j顺序，伴随矩阵是转置
 			}
 		}
 		return ret;
@@ -295,7 +304,7 @@ public:
 	mat<DimRow, DimCol, T> invert() const //求逆矩阵
 	{
 		mat<DimRow, DimCol, T> ret = this->adjugate();//伴随矩阵
-		T tmpdet = rows[0] * ret[0];//求得本阶行列式
+		T tmpdet = rows[0] * ret.col(0);//求得本阶行列式
 
 		return ret / tmpdet;
 	}
@@ -320,9 +329,9 @@ public:
 
 //矩阵左乘列向量
 template<size_t DIMRows, size_t DIMCols, typename T>
-vec<DIMCols, T> operator* (const mat<DIMRows, DIMCols, T>& lhs, const vec<DIMCols, T> rhs)
+vec<DIMRows, T> operator* (const mat<DIMRows, DIMCols, T>& lhs, const vec<DIMCols, T> rhs)
 {
-	vec<DIMCols, T> ret;
+	vec<DIMRows, T> ret;
 	for (size_t i = DIMRows; i--;)
 	{
 		ret[i] = lhs[i] * rhs;
@@ -343,9 +352,22 @@ mat<R1, C2, T> operator* (const mat<R1, C1, T>& lhs, const mat<C1, C2, T>& rhs)
 	return ret;
 }
 
-//矩阵数除
+//矩阵数乘
 template<size_t DIMRows, size_t DIMCols, typename T>
 mat<DIMRows, DIMCols, T> operator* (const mat<DIMRows, DIMCols, T>& lhs, const T num)
+{
+	mat<DIMRows, DIMCols, T> ret;
+	for (size_t i = DIMRows; i--;)
+	{
+		for (size_t j = DIMCols; j--;)
+			ret[i][j] = lhs[i][j] * num;
+	}
+	return ret;
+}
+
+//矩阵数除
+template<size_t DIMRows, size_t DIMCols, typename T>
+mat<DIMRows, DIMCols, T> operator/ (const mat<DIMRows, DIMCols, T>& lhs, const T num)
 {
 	mat<DIMRows, DIMCols, T> ret;
 	for (size_t i = DIMRows; i--;)
